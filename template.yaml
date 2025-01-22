@@ -1,0 +1,236 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: this is a CloudFormation stack for creating the following resources
+  1. S3 bucket for storing the input/output data, as well as the pyspark code and logs that are beign generated during the ETL process)
+  2. Glue job that will be used to run the ETL process
+  3. Glue databases and tables that will be used to store the input and output data
+  4. crawler that will be used to export the input data schema
+  5. Athena table that will be used to query the output data
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: The name of the S3 bucket to be created
+  GlueIAMRoleName:
+    Type: String
+    Description: The name of the IAM role to be created for the Glue job
+  GlueDatabaseInputName:
+    Type: String
+    Description: The name of the Glue database to be created
+  GlueDatabaseInputDescription:
+    Type: String
+    Description: The description of the Glue database to be created
+  GlueDatabaseOutputName:
+    Type: String
+    Description: The name of the Glue database to be created
+  GlueDatabaseOutputDescription:
+    Type: String
+    Description: The description of the Glue database to be created
+  CrawlerName:
+    Type: String
+    Description: The name of the Glue crawler to be created
+  ETLCapacity:
+    Type: Number
+    Description: The capacity of the Glue job to be created
+  ETLName:
+    Type: String
+    Description: The name of the Glue job to be created
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Name
+          Value: !Ref S3BucketName
+
+  S3BucketPolicy:
+      DependsOn: S3Bucket
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref S3BucketName
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Principal:
+                Service: glue.amazonaws.com
+              Action:
+                - "s3:GetObject"
+                - "s3:PutObject"
+                - "s3:DeleteObject"
+              Effect: Allow
+              Resource:
+                - !Sub "arn:aws:s3:::${S3BucketName}"
+                - !Sub "arn:aws:s3:::${S3BucketName}/*"
+
+  # A shell script that will create the necessary directories in the S3 bucket 
+  CreateS3Directories:
+    Type: AWSUtility::CloudFormation::CommandRunner
+    DependsOn: S3Bucket
+    Properties:
+      Command: |
+        BUCKET_NAME="elis-data-engineering-assignment-bucket"
+        FOLDERS=("raw_Data" "processedData" "scriptLocation" "tmpDir")
+
+        for folder in "${FOLDERS[@]}"; do
+            aws s3api put-object --bucket $BUCKET_NAME --key "$folder/"
+            echo "Created folder: $folder"
+        done
+        aws s3 cp ./app.py s3://${S3BucketName}/scriptLocation/
+
+  GlueIAMRole:
+    DependsOn:
+      - S3Bucket
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: AWSGlueServicePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:*
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                  - s3:ListAllMyBuckets
+                  - s3:GetBucketAcl
+                  - iam:ListRolePolicies
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - arn:aws:s3:::aws-glue-*/*
+                  - arn:aws:s3:::*/*aws-glue-*/*
+                  - arn:aws:s3:::crawler-public*
+                  - !GetAtt S3Bucket.Arn
+                  - !Join
+                    - ""
+                    - - !GetAtt S3Bucket.Arn
+                      - /*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*:/aws-glue/*
+      RoleName: !Ref GlueIAMRoleName
+      Tags:
+        - Key: Name
+          Value: !Ref GlueIAMRoleName
+
+  GlueDatabaseInput:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        LocationUri: !Join
+          - ""
+          - 
+            - "s3://"
+            - !Ref S3BucketName
+            - "/raw_Data"
+
+        Name: !Ref GlueDatabaseInputName
+        Description: !Ref GlueDatabaseInputDescription
+      DatabaseName: !Ref GlueDatabaseInputName
+
+  GlueDatabaseOutput:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        LocationUri: !Join
+          - ""
+          - 
+            - "s3://"
+            - !Ref S3BucketName
+            - "/processedData"
+
+
+        Name: !Ref GlueDatabaseOutputName
+        Description: !Ref GlueDatabaseOutputDescription
+      DatabaseName: !Ref GlueDatabaseOutputName
+
+  stocksCrawler:
+    DependsOn:
+      - S3Bucket
+      - GlueDatabaseInput
+    Type: AWS::Glue::Crawler
+    Properties:
+      Configuration: "{\"Version\":1.0,\"CrawlerOutput\":{\"Partitions\":{\"AddOrUpdateBehavior\":\"InheritFromTable\"},\"Tables\":{\"AddOrUpdateBehavior\":\"MergeNewColumns\"}}}"
+      DatabaseName: !Ref GlueDatabaseInputName
+      Description: !Ref GlueDatabaseInputDescription
+      Name: !Ref CrawlerName
+      Role: !GetAtt GlueIAMRole.Arn
+      Targets:
+        S3Targets:
+          - Path: !Join
+              - ""
+              - 
+                - "s3://"
+                - !Ref S3BucketName
+                - "/raw_Data"
+
+
+  ETLStockManipultion:
+    DependsOn:
+      - S3Bucket
+      - GlueDatabaseOutput
+    Type: AWS::Glue::Job
+    Properties:
+      MaxCapacity: !Ref ETLCapacity
+      GlueVersion: "5.0"
+      Command:
+        Name: glueetl
+        ScriptLocation: !Join
+        - ""
+        - 
+          - "s3://"
+          - !Ref S3BucketName
+          - "/scriptLocation/app.py"
+      DefaultArguments:
+        {
+          "--output_path": !Sub "s3://${S3BucketName}/peocessedData/",
+          "--JOB_NAME": "ETL_stock_manipultion",
+        }
+      Description: |
+        "This job will output the following objectives to the S3 bucket: each result will have its own file 
+         * average daily return of all stocks for every date
+         * the stock that was traded with the highest worth
+         * the stock with the most volatile
+         * top three dates with the best 30-day return dates"
+      MaxRetries: 2
+      Name: !Ref ETLName
+      Role: !GetAtt GlueIAMRole.Arn
+      LogUri: !Join
+        - ""
+        - 
+          - "s3://"
+          - !Ref S3BucketName
+          - "/tmpDir"
+
+Outputs:
+  S3BucketOutput:
+    Description: A reference to the created S3 bucket
+    Value: !Ref S3Bucket

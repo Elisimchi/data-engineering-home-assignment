@@ -1,0 +1,38 @@
+[
+    {
+        "ParameterKey": "S3BucketName",
+        "ParameterValue": "elis-data-engineering-assignment-bucket"
+    },
+    {
+        "ParameterKey": "GlueIAMRole",
+        "ParameterValue": "elis-data-engineering-assignment-CF-GlueRole"
+    },
+    {
+        "ParameterKey": "GlueDatabaseInput_name",
+        "ParameterValue": "raw_data_db"
+    },
+    {
+        "ParameterKey": "GlueDatabaseInput_description",
+        "ParameterValue": "Database for storing raw input data"
+    },
+    {
+        "ParameterKey": "GlueDatabaseOutput_name",
+        "ParameterValue": "processed_data_db"
+    },
+    {
+        "ParameterKey": "GlueDatabaseOutput_description",
+        "ParameterValue": "Database for storing processed output data"
+    },
+    {
+        "ParameterKey": "CrawlerName",
+        "ParameterValue": "data-crawler"
+    },
+    {
+        "ParameterKey": "ETLCapacity",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "ETL_Name",
+        "ParameterValue": "data-transformation-job"
+    }
+]
