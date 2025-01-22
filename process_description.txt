@@ -1,12 +1,8 @@
-read documention
-fork repo
-install pyspark + java 
-learn about pyspark + aws glue + kinesis 
-write a python script localy and test results
-start to wrtie the cloudformation stack
-    resources:
-    - S3 for storing the raw data, processe data, script, athena
-    - IAM role 
-    - athena
-create a script that upload the folders and files into s3 bucket
-using sam build and sam deploy
+I started by reading the documentation.
+then I installed Pyspark + Java.
+due to a lack of knowledge of Pyspark and AWS Glue I began to learn about these resources.
+afterward, I forked the repo, wrote a python script to run locally, and tested the results.
+
+start to write the cloudformation stack
+create a bash script that uploads the folders and files into s3 bucket
+using sam build and sam deploy to upload the cloudformation
