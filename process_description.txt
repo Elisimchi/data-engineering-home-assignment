@@ -1,12 +1,13 @@
-read documention
-fork repo
-install pyspark + java 
-learn about pyspark + aws glue + kinesis 
-write a python script localy and test results
-start to wrtie the cloudformation stack
-    resources:
-    - S3 for storing the raw data, processe data, script, athena
-    - IAM role 
-    - athena
-create a script that upload the folders and files into s3 bucket
-using sam build and sam deploy
+I will describe my working process in this file.
+I started by reading the documentation and was trying to understand what tools and skills I would need to accomplish this task.
+installed Pyspark package.
+due to a lack of knowledge of Pyspark and AWS Glue I began to learn about these resources. learning sources were AWS documentation and tutorials.
+after gaining enough knowledge (of course, it is not enough and there is still a lot to learn), I forked the repo, wrote a Python script to run it locally, and tested the results.
+
+start to write the Cloudformation stack
+I wrote this stack in a modular way. this means I wanted to avoid hardcoding values to keep the template as reusable as possible.
+create a bash script that uploads the folders and files into the s3 bucket.
+tested the stack - everything worked as expected.
+I was trying to use Sam Build and Sam Deploy to upload the Cloudformation template however, the parameters were supposed to be provided as part of the command line.
+so I decided to upload the Cloudformation manually eventually.
+the provided script (create-update-stack.sh) does not support parameters.
