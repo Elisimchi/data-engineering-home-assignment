@@ -70,7 +70,8 @@ Resources:
                 - !Sub "arn:aws:s3:::${S3BucketName}"
                 - !Sub "arn:aws:s3:::${S3BucketName}/*"
 
-  # A shell script that will create the necessary directories in the S3 bucket 
+  # A shell script that will create the necessary directories in the S3 bucket
+  # note that you need to install command-runner plugin in your account. see this doc -https://aws.amazon.com/blogs/mt/running-bash-commands-in-aws-cloudformation-templates/
   CreateS3Directories:
     Type: AWSUtility::CloudFormation::CommandRunner
     DependsOn: S3Bucket
@@ -83,6 +84,7 @@ Resources:
             aws s3api put-object --bucket $BUCKET_NAME --key "$folder/"
             echo "Created folder: $folder"
         done
+        # Copy the app.py file to the scriptLocation folder
         aws s3 cp ./app.py s3://${S3BucketName}/scriptLocation/
 
   GlueIAMRole:

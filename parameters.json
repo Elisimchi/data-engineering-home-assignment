@@ -1,7 +1,7 @@
 [
     {
         "ParameterKey": "S3BucketName",
-        "ParameterValue": "elis-data-engineering-assignment-bucket"
+        "ParameterValue": "data-engineer-task-elisimchi"
     },
     {
         "ParameterKey": "GlueIAMRole",
